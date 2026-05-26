@@ -226,6 +226,13 @@ public sealed class Plugin : BaseUnityPlugin
 		{
 			Instance?.TickFlashlightControllerPostUpdate(__instance);
 		}
+
+		[HarmonyPrefix]
+		[HarmonyPatch(typeof(SemiPuke), "PukeActive")]
+		private static void SemiPukePukeActivePrefix(ref Quaternion _direction)
+		{
+			Instance?.OverridePukeDirection(ref _direction);
+		}
 	}
 
 	public const string PluginGuid = "com.reponativemods.thirdperson";
@@ -403,6 +410,10 @@ public sealed class Plugin : BaseUnityPlugin
 	private float _resolvedDistance;
 
 	private float _resolvedDistanceVelocity;
+
+	private Vector3 _gameplayCameraPosition;
+
+	private Vector3 _stableGrabOrigin;
 
 	private float _grabCameraBlend;
 
@@ -799,6 +810,8 @@ public sealed class Plugin : BaseUnityPlugin
 		_currentDistance = ClampDistance(_defaultDistance.Value);
 		_resolvedDistance = _currentDistance;
 		_resolvedDistanceVelocity = 0f;
+		_gameplayCameraPosition = Vector3.zero;
+		_stableGrabOrigin = Vector3.zero;
 		_grabCameraBlend = 0f;
 		_grabCameraBlendVelocity = 0f;
 		_wasLocalGrabActive = false;
@@ -1723,8 +1736,7 @@ public sealed class Plugin : BaseUnityPlugin
 			return false;
 		}
 		PlayerAvatar instance2 = PlayerAvatar.instance;
-		Transform val = instance2?.PlayerVisionTarget?.VisionTransform;
-		Vector3 val2 = (((Object)(object)val != (Object)null) ? val.position : (((Object)(object)instance2 != (Object)null) ? ((Component)instance2).transform.position : Vector3.zero));
+		Vector3 val2 = ((Object)(object)instance2 != (Object)null) ? GetCharacterGrabOrigin(instance2) : Vector3.zero;
 		Vector3 val3 = grabbedObjectTransform.position - val2;
 		val3.y = 0f;
 		if (val3.sqrMagnitude < 0.0001f)
@@ -1745,6 +1757,41 @@ public sealed class Plugin : BaseUnityPlugin
 		}
 		yaw = rotation.eulerAngles.y;
 		return true;
+	}
+
+	internal void OverridePukeDirection(ref Quaternion direction)
+	{
+		if (!_thirdPersonActive || _temporarilyFirstPerson)
+		{
+			return;
+		}
+		if (TryGetVisualFacingRotation(out var visualRotation))
+		{
+			direction = visualRotation;
+		}
+	}
+
+	private bool TryGetVisualFacingRotation(out Quaternion rotation)
+	{
+		rotation = Quaternion.identity;
+		if (_hasVisualFacingRotation)
+		{
+			rotation = _visualFacingRotation;
+			return true;
+		}
+		PlayerAvatar avatar = PlayerAvatar.instance;
+		if ((Object)(object)avatar != (Object)null && (Object)(object)avatar.playerAvatarVisuals != (Object)null)
+		{
+			rotation = ((Component)avatar.playerAvatarVisuals).transform.rotation;
+			return true;
+		}
+		PlayerController controller = PlayerController.instance;
+		if ((Object)(object)controller != (Object)null)
+		{
+			rotation = ((Component)controller).transform.rotation;
+			return true;
+		}
+		return false;
 	}
 
 	private void LateUpdate()
@@ -1799,7 +1846,7 @@ public sealed class Plugin : BaseUnityPlugin
 		Transform transform = ((Component)instance2).transform;
 		UpdateGrabAimLockState(instance);
 		Vector3 val = CalculateCameraPosition(instance, transform);
-		Ray thirdPersonGameplayRay = GetThirdPersonGameplayRay(instance, val, transform);
+		Ray thirdPersonGameplayRay = GetThirdPersonGameplayRay(instance, _gameplayCameraPosition, transform);
 		UpdateSelectionTransform(instance, thirdPersonGameplayRay);
 		instance3.OverridePosition(val, 0.1f);
 		((Component)instance3).transform.position = val;
@@ -1921,6 +1968,8 @@ public sealed class Plugin : BaseUnityPlugin
 			_currentDistance = ClampDistance(_defaultDistance.Value);
 			_resolvedDistance = _currentDistance;
 			_resolvedDistanceVelocity = 0f;
+			_gameplayCameraPosition = Vector3.zero;
+			_stableGrabOrigin = Vector3.zero;
 			_grabCameraBlend = 0f;
 			_grabCameraBlendVelocity = 0f;
 			_wasLocalGrabActive = false;
@@ -2027,6 +2076,8 @@ public sealed class Plugin : BaseUnityPlugin
 		_currentDistance = ClampDistance(_defaultDistance.Value);
 		_resolvedDistance = _currentDistance;
 		_resolvedDistanceVelocity = 0f;
+		_gameplayCameraPosition = Vector3.zero;
+		_stableGrabOrigin = Vector3.zero;
 		_grabCameraBlend = 0f;
 		_grabCameraBlendVelocity = 0f;
 		_wasLocalGrabActive = false;
@@ -3204,14 +3255,19 @@ public sealed class Plugin : BaseUnityPlugin
 		//IL_0135: Unknown result type (might be due to invalid IL or missing references)
 		//IL_0137: Unknown result type (might be due to invalid IL or missing references)
 		Vector3 headCenterPoint = GetHeadCenterPoint(avatar);
+		_stableGrabOrigin = headCenterPoint;
 		UpdateGrabCameraBlend();
 		float effectiveCameraDistance = GetEffectiveCameraDistance();
 		float effectiveCameraOffsetX = GetEffectiveCameraOffsetX();
-		Vector3 val = headCenterPoint - aimTransform.forward * effectiveCameraDistance + aimTransform.right * effectiveCameraOffsetX - headCenterPoint;
+		Vector3 desiredCameraPosition = headCenterPoint - aimTransform.forward * effectiveCameraDistance + aimTransform.right * effectiveCameraOffsetX;
+		_gameplayCameraPosition = desiredCameraPosition;
+		Vector3 val = desiredCameraPosition - headCenterPoint;
 		float magnitude = val.magnitude;
 		if (magnitude <= 0.001f)
 		{
 			_resolvedDistance = 0.05f;
+			_gameplayCameraPosition = headCenterPoint;
+			_stableGrabOrigin = headCenterPoint;
 			return headCenterPoint;
 		}
 		Vector3 val2 = val / magnitude;
@@ -5033,7 +5089,7 @@ public sealed class Plugin : BaseUnityPlugin
 			return;
 		}
 		Transform val = avatar.PlayerVisionTarget?.VisionTransform;
-		Vector3 val2 = ((_selectionOriginMode == null || !string.Equals(_selectionOriginMode.Value, "PlayerVision", StringComparison.OrdinalIgnoreCase)) ? GetCharacterGrabOrigin(avatar) : (((Object)(object)val != (Object)null) ? val.position : GetCharacterGrabOrigin(avatar)));
+		Vector3 val2 = ((_selectionOriginMode == null || !string.Equals(_selectionOriginMode.Value, "PlayerVision", StringComparison.OrdinalIgnoreCase)) ? GetCharacterGrabOrigin(avatar) : GetStableVisionOrigin(avatar, val));
 		Vector3 direction = cameraCenterRay.direction;
 		Vector3 normalized = direction.normalized;
 		float currentGrabRange = GetCurrentGrabRange();
@@ -5044,7 +5100,13 @@ public sealed class Plugin : BaseUnityPlugin
 		bool hasCameraHit = false;
 		bool hitIsReachable = false;
 		Vector3 cameraHitPoint = cameraCenterRay.origin + normalized * Mathf.Min(_selectionMaxDistance.Value, currentGrabRange + _resolvedDistance + 2f);
-		if (IsGrabAimLockActive())
+		if (IsLocalGrabActive())
+		{
+			cameraHitPoint = val3;
+			hasCameraHit = true;
+			hitIsReachable = true;
+		}
+		else if (IsGrabAimLockActive())
 		{
 			val3 = _grabAimLockTarget;
 			cameraHitPoint = _grabAimLockTarget;
@@ -5055,7 +5117,7 @@ public sealed class Plugin : BaseUnityPlugin
 		{
 			hasCameraHit = true;
 			cameraHitPoint = val4.point;
-			if (Vector3.Distance(val2, val4.point) <= currentGrabRange + 0.05f)
+			if (IsForwardReachableGrabPoint(val2, val4.point, normalized, currentGrabRange))
 			{
 				hitIsReachable = true;
 				val3 = val4.point;
@@ -5085,13 +5147,34 @@ public sealed class Plugin : BaseUnityPlugin
 		{
 			return Vector3.zero;
 		}
-		Vector3 position = ((Component)avatar).transform.position;
-		PlayerAvatarVisuals playerAvatarVisuals = avatar.playerAvatarVisuals;
-		if ((Object)(object)playerAvatarVisuals != (Object)null && (Object)(object)playerAvatarVisuals.headLookAtTransform != (Object)null)
+		if (_thirdPersonActive && !_temporarilyFirstPerson && _stableGrabOrigin.sqrMagnitude > 0.0001f)
 		{
-			return playerAvatarVisuals.headLookAtTransform.position;
+			return _stableGrabOrigin;
 		}
-		return position + Vector3.up * Mathf.Clamp(_runtimeOffsetY + _thirdPersonCrouchYOffset, 0.9f, 1.8f);
+		return GetHeadCenterPoint(avatar);
+	}
+
+	private Vector3 GetStableVisionOrigin(PlayerAvatar avatar, Transform visionTransform)
+	{
+		if ((Object)(object)avatar == (Object)null)
+		{
+			return Vector3.zero;
+		}
+		if (_thirdPersonActive && !_temporarilyFirstPerson)
+		{
+			return GetCharacterGrabOrigin(avatar);
+		}
+		return ((Object)(object)visionTransform != (Object)null) ? visionTransform.position : GetCharacterGrabOrigin(avatar);
+	}
+
+	private static bool IsForwardReachableGrabPoint(Vector3 origin, Vector3 point, Vector3 aimDirection, float grabRange)
+	{
+		Vector3 toPoint = point - origin;
+		if (Vector3.Dot(toPoint, aimDirection.normalized) <= 0.03f)
+		{
+			return false;
+		}
+		return toPoint.magnitude <= grabRange + 0.05f;
 	}
 
 	private float GetCurrentGrabRange()
