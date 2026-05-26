@@ -1,0 +1,15 @@
+bin/
+obj/
+build.log
+
+*.dll
+*.pdb
+*.deps.json
+
+*.bak
+*.blob
+*.tmp
+
+.vs/
+.vscode/
+.idea/
