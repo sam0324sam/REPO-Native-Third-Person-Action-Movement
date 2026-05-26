@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.3.1
+
+- Fixed third-person grabbing being able to target objects between the camera and the character.
+- Fixed third-person held objects reacting to camera collision pull-in when the view is pushed closer by walls or obstacles.
+- Fixed Head Grabber puke direction in third-person so it follows the character body direction instead of the camera crosshair.
+- Reduced held-object wobble when the third-person camera is obstructed by separating grab logic from visual camera collision and animated head/hand look targets.
+- Kept the v1.3.0 permanent shoulder-camera behavior and original flashlight behavior.
+
 ## 1.3.0
 
 - Made third-person use a permanent right-shoulder camera.

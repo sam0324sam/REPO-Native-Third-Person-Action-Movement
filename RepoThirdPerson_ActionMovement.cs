@@ -15,14 +15,14 @@ using UnityEngine.Rendering.PostProcessing;
 
 [assembly: AssemblyCompany("RepoThirdPerson")]
 [assembly: AssemblyConfiguration("Release")]
-[assembly: AssemblyFileVersion("1.3.0.0")]
-[assembly: AssemblyInformationalVersion("1.3.0")]
+[assembly: AssemblyFileVersion("1.3.1.0")]
+[assembly: AssemblyInformationalVersion("1.3.1")]
 [assembly: AssemblyProduct("RepoThirdPerson")]
 [assembly: AssemblyTitle("RepoThirdPerson")]
-[assembly: AssemblyVersion("1.3.0.0")]
+[assembly: AssemblyVersion("1.3.1.0")]
 namespace RepoThirdPerson;
 
-[BepInPlugin("com.reponativemods.thirdperson", "REPO Native Third Person", "1.3.0")]
+[BepInPlugin("com.reponativemods.thirdperson", "REPO Native Third Person", "1.3.1")]
 public sealed class Plugin : BaseUnityPlugin
 {
 	private struct ClipPlaneState
@@ -239,7 +239,7 @@ public sealed class Plugin : BaseUnityPlugin
 
 	public const string PluginName = "REPO Native Third Person";
 
-	public const string PluginVersion = "1.3.0";
+	public const string PluginVersion = "1.3.1";
 
 	private const string SelectionTransformName = "REPO Native Third Person Selection Transform";
 
@@ -830,7 +830,7 @@ public sealed class Plugin : BaseUnityPlugin
 		CreateInputActions();
 		_harmony = new Harmony("com.reponativemods.thirdperson");
 		_harmony.PatchAll(typeof(RepoUpdatePatches));
-		Logger.LogInfo((object)$"Loaded action-movement build 55 with character-origin held grab override. ToggleKey={_toggleKey.Value}, CollisionRadius={_collisionRadius.Value:0.###}, OffsetX={_runtimeOffsetX:0.###}, GrabOffset={_grabCameraOffsetX.Value:0.###}, DebugPoints={_debugShowCameraPoints.Value}, GrabDebug={_debugShowGrabSelection.Value}, TransparencyMode={_localTransparencyMode.Value}, SelectionOrigin={_selectionOriginMode.Value}, RuntimeTuningLocked={_lockRuntimeCameraTuning.Value}");
+		Logger.LogInfo((object)$"Loaded action-movement build 56 with targeted grab and puke hotfixes. ToggleKey={_toggleKey.Value}, CollisionRadius={_collisionRadius.Value:0.###}, OffsetX={_runtimeOffsetX:0.###}, GrabOffset={_grabCameraOffsetX.Value:0.###}, DebugPoints={_debugShowCameraPoints.Value}, GrabDebug={_debugShowGrabSelection.Value}, TransparencyMode={_localTransparencyMode.Value}, SelectionOrigin={_selectionOriginMode.Value}, RuntimeTuningLocked={_lockRuntimeCameraTuning.Value}");
 	}
 
 	private void LockAcceptedMapOverlaySettings()

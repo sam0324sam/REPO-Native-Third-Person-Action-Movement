@@ -26,6 +26,13 @@ This fork is not affiliated with Team_Bingus.
 - Debug grab rays and points for troubleshooting
 - Client-side only; other players do not need the mod
 
+## Version 1.3.1 Changes
+
+- Fixed third-person grabbing being able to grab objects between the camera and the character.
+- Fixed held objects moving when the third-person camera is pushed closer by wall or obstacle collision.
+- Fixed Head Grabber puke direction so it follows the character body direction in third-person.
+- Reduced held-object wobble from obstructed third-person camera views by keeping grab logic on stable gameplay origins instead of visual camera collision or animated head/hand targets.
+
 ## Version 1.3.0 Changes
 
 - Changed normal third-person into a permanent shoulder camera instead of switching into shoulder view only while grabbing.
