@@ -6,6 +6,11 @@
 - Fixed third-person held objects reacting to camera collision pull-in when the view is pushed closer by walls or obstacles.
 - Fixed Head Grabber puke direction in third-person so it follows the character body direction instead of the camera crosshair.
 - Reduced held-object wobble when the third-person camera is obstructed by separating grab logic from visual camera collision and animated head/hand look targets.
+- Fixed local third-person flashlight aiming so the flashlight model, light cone, and left-arm pose stay synchronized.
+- Fixed third-person grabber/flashlight arm poses so the local model visibly reaches forward while grabbing or using the flashlight.
+- Fixed custom-player-model compatibility so local third-person facing fixes are not applied to every player in multiplayer.
+- Disabled noisy periodic camera snapshot logs during normal play.
+- Adjusted grab debug visuals so the yellow helper ray starts from the visible character body while gameplay grabbing remains driven by the crosshair path.
 - Kept the v1.3.0 permanent shoulder-camera behavior and original flashlight behavior.
 
 ## 1.3.0

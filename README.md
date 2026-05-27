@@ -32,6 +32,10 @@ This fork is not affiliated with Team_Bingus.
 - Fixed held objects moving when the third-person camera is pushed closer by wall or obstacle collision.
 - Fixed Head Grabber puke direction so it follows the character body direction in third-person.
 - Reduced held-object wobble from obstructed third-person camera views by keeping grab logic on stable gameplay origins instead of visual camera collision or animated head/hand targets.
+- Fixed third-person flashlight handling so the flashlight model, light cone, and left-arm pose point together.
+- Fixed third-person grabber/flashlight arm poses so the local visible model reaches forward while grabbing or using the flashlight.
+- Fixed custom player model compatibility so multiplayer player movement/facing is not affected by the local player's WASD direction.
+- Disabled noisy camera snapshot logs and refined grab debug helper lines.
 
 ## Version 1.3.0 Changes
 
@@ -96,3 +100,12 @@ Please report bugs with:
 - your mod list if another camera/player-model mod may be involved
 
 Contact Discord ID: `211491216032923648`
+
+## Source Layout
+
+The mod still builds into one `RepoThirdPerson.dll` for BepInEx/Thunderstore compatibility, but the plugin source is split by responsibility:
+
+- `RepoThirdPerson_ActionMovement.cs`: plugin state, config, camera, movement, selection, grabbing, compatibility core
+- `Plugin.Patches.cs`: Harmony patch entry points
+- `Plugin.AvatarVisuals.cs`: local avatar, flashlight, arm-pose, and visible-model helpers
+- `Plugin.DebugVisuals.cs`: camera/grab debug points and line renderers

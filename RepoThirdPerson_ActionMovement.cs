@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Reflection;
@@ -23,7 +23,7 @@ using UnityEngine.Rendering.PostProcessing;
 namespace RepoThirdPerson;
 
 [BepInPlugin("com.reponativemods.thirdperson", "REPO Native Third Person", "1.3.1")]
-public sealed class Plugin : BaseUnityPlugin
+public sealed partial class Plugin : BaseUnityPlugin
 {
 	private struct ClipPlaneState
 	{
@@ -32,224 +32,7 @@ public sealed class Plugin : BaseUnityPlugin
 		public float Far;
 	}
 
-	private static class RepoUpdatePatches
-	{
-		[HarmonyPostfix]
-		[HarmonyPatch(typeof(PlayerController), "Update")]
-		private static void PlayerControllerUpdatePostfix()
-		{
-			Instance?.TickInput();
-		}
 
-		[HarmonyPrefix]
-		[HarmonyPriority(800)]
-		[HarmonyPatch(typeof(PlayerController), "FixedUpdate")]
-		private static void PlayerControllerFixedUpdatePrefix(PlayerController __instance)
-		{
-			Instance?.BeginActionMovementRewrite(__instance);
-		}
-
-		[HarmonyTranspiler]
-		[HarmonyPatch(typeof(PlayerController), "FixedUpdate")]
-		private static IEnumerable<CodeInstruction> PlayerControllerFixedUpdateTranspiler(IEnumerable<CodeInstruction> instructions)
-		{
-			List<CodeInstruction> list = new List<CodeInstruction>(instructions);
-			FieldInfo vector3Y = AccessTools.Field(typeof(Vector3), "y");
-			MethodInfo euler = AccessTools.Method(typeof(Quaternion), "Euler", new Type[3]
-			{
-				typeof(float),
-				typeof(float),
-				typeof(float)
-			}, (Type[])null);
-			MethodInfo resolveYaw = AccessTools.Method(typeof(RepoUpdatePatches), "ResolveActionMovementYaw", (Type[])null, (Type[])null);
-			bool patched = false;
-			for (int i = 0; i < list.Count; i++)
-			{
-				yield return list[i];
-				if (patched || !(list[i].opcode == OpCodes.Ldfld) || !object.Equals(list[i].operand, vector3Y))
-				{
-					continue;
-				}
-				for (int j = i + 1; j < list.Count && j <= i + 4; j++)
-				{
-					if (Calls(list[j], euler))
-					{
-						yield return new CodeInstruction(OpCodes.Call, (object)resolveYaw);
-						patched = true;
-						break;
-					}
-				}
-			}
-		}
-
-		private static bool Calls(CodeInstruction instruction, MethodInfo method)
-		{
-			if (instruction.opcode == OpCodes.Call)
-			{
-				return object.Equals(instruction.operand, method);
-			}
-			return false;
-		}
-
-		private static float ResolveActionMovementYaw(float originalYaw)
-		{
-			if ((Object)(object)Instance == (Object)null)
-			{
-				return originalYaw;
-			}
-			if (Instance.IsLocalGrabActive() && Instance.TryGetGameplayAimYaw(out var yaw))
-			{
-				_hasRewriteTurnYaw = true;
-				_lastRewriteTurnYaw = yaw;
-				return yaw;
-			}
-			if ((IsActionMovementCameraLockHeld() || Instance.IsMapAimLockActive()) && Instance.TryGetGameplayAimYaw(out var yaw2))
-			{
-				_hasRewriteTurnYaw = true;
-				_lastRewriteTurnYaw = yaw2;
-				return yaw2;
-			}
-			if (!Instance.CanAcceptActionMovementInput())
-			{
-				return originalYaw;
-			}
-			if (_rewriteMovementInput)
-			{
-				return _rewriteTurnYaw;
-			}
-			if (!_hasRewriteTurnYaw)
-			{
-				return originalYaw;
-			}
-			return _lastRewriteTurnYaw;
-		}
-
-		internal static bool IsActionMovementCameraLockHeld()
-		{
-			if ((Object)(object)Instance != (Object)null && Instance.IsCameraLockTemporarilySuppressed())
-			{
-				return false;
-			}
-			if (Mouse.current != null && Mouse.current.rightButton != null)
-			{
-				return Mouse.current.rightButton.isPressed;
-			}
-			return Input.GetMouseButton(1);
-		}
-
-		[HarmonyPostfix]
-		[HarmonyPriority(0)]
-		[HarmonyPatch(typeof(PlayerController), "FixedUpdate")]
-		private static void PlayerControllerFixedUpdatePostfix(PlayerController __instance)
-		{
-			Instance?.TickActionMovementAfterFixedUpdate(__instance);
-		}
-
-		[HarmonyFinalizer]
-		[HarmonyPriority(0)]
-		[HarmonyPatch(typeof(PlayerController), "FixedUpdate")]
-		private static void PlayerControllerFixedUpdateFinalizer()
-		{
-			Instance?.EndActionMovementRewrite();
-		}
-
-		[HarmonyPostfix]
-		[HarmonyPatch(typeof(SemiFunc), "InputMovementX")]
-		private static void SemiFuncInputMovementXPostfix(ref float __result)
-		{
-			if (_rewriteMovementInput)
-			{
-				__result = _rewriteMovementX;
-			}
-		}
-
-		[HarmonyPostfix]
-		[HarmonyPatch(typeof(SemiFunc), "InputMovementY")]
-		private static void SemiFuncInputMovementYPostfix(ref float __result)
-		{
-			if (_rewriteMovementInput)
-			{
-				__result = _rewriteMovementY;
-			}
-		}
-
-		[HarmonyPostfix]
-		[HarmonyPriority(0)]
-		[HarmonyPatch(typeof(PlayerAvatarVisuals), "Update")]
-		private static void PlayerAvatarVisualsUpdatePostfix(PlayerAvatarVisuals __instance)
-		{
-			Instance?.TickActionMovementVisuals(__instance);
-		}
-
-		[HarmonyPriority(0)]
-		private static void ModdedModelPlayerAvatarUpdatePostfix(object __instance)
-		{
-			Instance?.TickModdedModelPlayerAvatarPostUpdate(__instance);
-		}
-
-		[HarmonyPostfix]
-		[HarmonyPatch(typeof(CameraPosition), "Update")]
-		private static void CameraPositionUpdatePostfix(CameraPosition __instance)
-		{
-		}
-
-		[HarmonyPostfix]
-		[HarmonyPatch(typeof(CameraCrouchPosition), "Update")]
-		private static void CameraCrouchPositionUpdatePostfix(CameraCrouchPosition __instance)
-		{
-		}
-
-		[HarmonyPostfix]
-		[HarmonyPatch(typeof(CameraCrawlPosition), "Update")]
-		private static void CameraCrawlPositionUpdatePostfix(CameraCrawlPosition __instance)
-		{
-		}
-
-		[HarmonyPostfix]
-		[HarmonyPatch(typeof(PlayerLocalCamera), "GetOverrideTransform")]
-		private static void PlayerLocalCameraGetOverrideTransformPostfix(PlayerLocalCamera __instance, ref Transform __result)
-		{
-			Instance?.TryGetSelectionOverride(__instance, ref __result);
-		}
-
-		[HarmonyPostfix]
-		[HarmonyPatch(typeof(PlayerLocalCamera), "GetOverrideActive")]
-		private static void PlayerLocalCameraGetOverrideActivePostfix(PlayerLocalCamera __instance, ref bool __result)
-		{
-			Instance?.TryGetSelectionOverrideActive(__instance, ref __result);
-		}
-
-		[HarmonyPostfix]
-		[HarmonyPriority(0)]
-		[HarmonyPatch(typeof(FlashlightController), "Update")]
-		private static void FlashlightControllerUpdatePostfix(FlashlightController __instance)
-		{
-			Instance?.TickFlashlightControllerPostUpdate(__instance);
-		}
-
-		[HarmonyPostfix]
-		[HarmonyPriority(0)]
-		[HarmonyPatch(typeof(PlayerAvatarRightArm), "Update")]
-		private static void PlayerAvatarRightArmUpdatePostfix(PlayerAvatarRightArm __instance)
-		{
-			Instance?.ForceLocalThirdPersonRightArmPose(__instance);
-		}
-
-		[HarmonyPostfix]
-		[HarmonyPriority(0)]
-		[HarmonyPatch(typeof(PlayerAvatarLeftArm), "Update")]
-		private static void PlayerAvatarLeftArmUpdatePostfix(PlayerAvatarLeftArm __instance)
-		{
-			Instance?.ForceLocalThirdPersonLeftArmPose(__instance);
-		}
-
-		[HarmonyPrefix]
-		[HarmonyPatch(typeof(SemiPuke), "PukeActive")]
-		private static void SemiPukePukeActivePrefix(ref Quaternion _direction)
-		{
-			Instance?.OverridePukeDirection(ref _direction);
-		}
-	}
 
 	public const string PluginGuid = "com.reponativemods.thirdperson";
 
@@ -937,112 +720,11 @@ public sealed class Plugin : BaseUnityPlugin
 		}
 	}
 
-	private static Transform CreateDebugPoint(string objectName, Color color, float scale)
-	{
-		//IL_001f: Unknown result type (might be due to invalid IL or missing references)
-		//IL_002f: Unknown result type (might be due to invalid IL or missing references)
-		//IL_0060: Unknown result type (might be due to invalid IL or missing references)
-		//IL_006a: Expected O, but got Unknown
-		//IL_008e: Unknown result type (might be due to invalid IL or missing references)
-		GameObject val = GameObject.CreatePrimitive((PrimitiveType)0);
-		if ((Object)(object)val == (Object)null)
-		{
-			return null;
-		}
-		((Object)val).name = objectName;
-		val.transform.localScale = Vector3.one * Mathf.Max(0.01f, scale);
-		int num = LayerMask.NameToLayer("TopLayer");
-		if (num >= 0)
-		{
-			val.layer = num;
-		}
-		Collider component = val.GetComponent<Collider>();
-		if ((Object)(object)component != (Object)null)
-		{
-			Object.Destroy((Object)component);
-		}
-		Renderer component2 = val.GetComponent<Renderer>();
-		if ((Object)(object)component2 != (Object)null)
-		{
-			Material material = component2.material;
-			if ((Object)(object)material != (Object)null)
-			{
-				material.color = color;
-			}
-		}
-		KeepAliveOutsideScene(val);
-		val.SetActive(false);
-		return val.transform;
-	}
 
-	private LineRenderer GetOrCreateDebugLine(ref LineRenderer line, ref Material material, string objectName, Color color, float width)
-	{
-		//IL_000e: Unknown result type (might be due to invalid IL or missing references)
-		//IL_0014: Expected O, but got Unknown
-		//IL_007f: Unknown result type (might be due to invalid IL or missing references)
-		//IL_009c: Unknown result type (might be due to invalid IL or missing references)
-		//IL_00a5: Unknown result type (might be due to invalid IL or missing references)
-		if ((Object)(object)line != (Object)null)
-		{
-			return line;
-		}
-		GameObject val = new GameObject(objectName);
-		KeepAliveOutsideScene(val);
-		int num = LayerMask.NameToLayer("TopLayer");
-		if (num >= 0)
-		{
-			val.layer = num;
-		}
-		line = val.AddComponent<LineRenderer>();
-		line.positionCount = 2;
-		line.useWorldSpace = true;
-		line.loop = false;
-		((Renderer)line).shadowCastingMode = (ShadowCastingMode)0;
-		((Renderer)line).receiveShadows = false;
-		line.widthMultiplier = Mathf.Max(0.002f, width);
-		material = CreateDebugLineMaterial(objectName + " Material", color);
-		if ((Object)(object)material != (Object)null)
-		{
-			((Renderer)line).material = material;
-		}
-		line.startColor = color;
-		line.endColor = color;
-		val.SetActive(false);
-		return line;
-	}
 
-	private static Material CreateDebugLineMaterial(string name, Color color)
-	{
-		//IL_0041: Unknown result type (might be due to invalid IL or missing references)
-		//IL_0047: Expected O, but got Unknown
-		//IL_0061: Unknown result type (might be due to invalid IL or missing references)
-		Shader val = Shader.Find("Hidden/Internal-Colored") ?? Shader.Find("Unlit/Color") ?? Shader.Find("Sprites/Default") ?? Shader.Find("Standard");
-		if ((Object)(object)val == (Object)null)
-		{
-			return null;
-		}
-		Material val2 = new Material(val);
-		((Object)val2).name = name;
-		if (val2.HasProperty("_Color"))
-		{
-			val2.SetColor("_Color", color);
-		}
-		if (val2.HasProperty("_SrcBlend"))
-		{
-			val2.SetFloat("_SrcBlend", 5f);
-		}
-		if (val2.HasProperty("_DstBlend"))
-		{
-			val2.SetFloat("_DstBlend", 10f);
-		}
-		if (val2.HasProperty("_ZWrite"))
-		{
-			val2.SetFloat("_ZWrite", 0f);
-		}
-		val2.renderQueue = 5000;
-		val2.SetOverrideTag("RenderType", "Transparent");
-		return val2;
-	}
+
+
+
 
 	private void Update()
 	{
@@ -2159,18 +1841,7 @@ public sealed class Plugin : BaseUnityPlugin
 		Logger.LogInfo((object)"Third-person camera disabled.");
 	}
 
-	private void HideDebugPoints()
-	{
-		if ((Object)(object)_debugAnchorPoint != (Object)null)
-		{
-			((Component)_debugAnchorPoint).gameObject.SetActive(false);
-		}
-		if ((Object)(object)_debugHeadPoint != (Object)null)
-		{
-			((Component)_debugHeadPoint).gameObject.SetActive(false);
-		}
-		HideGrabDebugVisuals();
-	}
+
 
 	private static bool ShouldTemporarilyUseFirstPerson()
 	{
@@ -2355,158 +2026,21 @@ public sealed class Plugin : BaseUnityPlugin
 		}
 	}
 
-	internal void TickFlashlightControllerPostUpdate(FlashlightController controller)
-	{
-		if (_thirdPersonActive && !_temporarilyFirstPerson && !((Object)(object)controller == (Object)null) && !((Object)(object)controller.PlayerAvatar == (Object)null) && !((Object)(object)controller.PlayerAvatar != (Object)(object)PlayerAvatar.instance))
-		{
-			controller.SetThirdPerson(true);
-			AlignLocalThirdPersonFlashlight(controller);
-			if ((Object)(object)controller.halo != (Object)null)
-			{
-				controller.halo.enabled = false;
-			}
-		}
-	}
 
-	private void AlignLocalThirdPersonFlashlight(FlashlightController controller)
-	{
-		//IL_003c: Unknown result type (might be due to invalid IL or missing references)
-		//IL_0041: Unknown result type (might be due to invalid IL or missing references)
-		//IL_0046: Unknown result type (might be due to invalid IL or missing references)
-		//IL_0061: Unknown result type (might be due to invalid IL or missing references)
-		//IL_0068: Unknown result type (might be due to invalid IL or missing references)
-		//IL_006e: Unknown result type (might be due to invalid IL or missing references)
-		//IL_009e: Unknown result type (might be due to invalid IL or missing references)
-		//IL_00a3: Unknown result type (might be due to invalid IL or missing references)
-		//IL_00bd: Unknown result type (might be due to invalid IL or missing references)
-		PlayerAvatar playerAvatar = controller.PlayerAvatar;
-		if ((Object)(object)playerAvatar == (Object)null)
-		{
-			return;
-		}
-		Vector3 val;
-		if (_hasVisualFacingRotation)
-		{
-			val = _visualFacingRotation * Vector3.forward;
-		}
-		else if ((Object)(object)playerAvatar.playerAvatarVisuals != (Object)null)
-		{
-			val = ((Component)playerAvatar.playerAvatarVisuals).transform.forward;
-		}
-		else
-		{
-			val = ((Component)playerAvatar).transform.forward;
-		}
-		val.y = 0f;
-		if (val.sqrMagnitude < 0.0001f)
-		{
-			return;
-		}
-		val.Normalize();
-		Transform transform = ((Component)controller).transform;
-		transform.rotation = Quaternion.LookRotation(val, Vector3.up);
-		if ((Object)(object)playerAvatar.flashlightLightAim != (Object)null)
-		{
-			playerAvatar.flashlightLightAim.clientAimPoint = transform.position + val * 100f;
-		}
-	}
 
-	internal void ForceLocalThirdPersonRightArmPose(PlayerAvatarRightArm arm)
-	{
-		if (!_thirdPersonActive || _temporarilyFirstPerson || (Object)(object)arm == (Object)null || (Object)(object)arm.playerAvatar != (Object)(object)PlayerAvatar.instance)
-		{
-			return;
-		}
-		PhysGrabber physGrabber = arm.playerAvatar.physGrabber;
-		if ((Object)(object)physGrabber == (Object)null || (!IsPhysGrabBeamActive(physGrabber) && !physGrabber.grabbed))
-		{
-			return;
-		}
-		if (_rightArmGrabberPoseOverrideMethod == null)
-		{
-			_rightArmGrabberPoseOverrideMethod = typeof(PlayerAvatarRightArm).GetMethod("GrabberPoseOverride", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
-		}
-		_rightArmGrabberPoseOverrideMethod?.Invoke(arm, new object[1] { 0.2f });
-		ForceRightArmPoseNow(arm, arm.grabberPose);
-	}
 
-	internal void ForceLocalThirdPersonLeftArmPose(PlayerAvatarLeftArm arm)
-	{
-		if (!_thirdPersonActive || _temporarilyFirstPerson || (Object)(object)arm == (Object)null || (Object)(object)arm.playerAvatar != (Object)(object)PlayerAvatar.instance)
-		{
-			return;
-		}
-		FlashlightController flashlightController = arm.flashlightController;
-		if ((Object)(object)flashlightController == (Object)null || (!flashlightController.LightActive && ((Object)(object)flashlightController.spotlight == (Object)null || !flashlightController.spotlight.enabled)))
-		{
-			return;
-		}
-		ForceLeftArmPoseNow(arm, arm.flashlightPose);
-	}
 
-	private void ForceRightArmPoseNow(PlayerAvatarRightArm arm, Vector3 pose)
-	{
-		if ((Object)(object)arm == (Object)null)
-		{
-			return;
-		}
-		if (_rightArmSetPoseMethod == null)
-		{
-			_rightArmSetPoseMethod = typeof(PlayerAvatarRightArm).GetMethod("SetPose", BindingFlags.Instance | BindingFlags.NonPublic);
-		}
-		if (_rightArmAnimatePoseMethod == null)
-		{
-			_rightArmAnimatePoseMethod = typeof(PlayerAvatarRightArm).GetMethod("AnimatePose", BindingFlags.Instance | BindingFlags.NonPublic);
-		}
-		_rightArmSetPoseMethod?.Invoke(arm, new object[1] { pose });
-		_rightArmAnimatePoseMethod?.Invoke(arm, null);
-	}
 
-	private void ForceLeftArmPoseNow(PlayerAvatarLeftArm arm, Vector3 pose)
-	{
-		if ((Object)(object)arm == (Object)null)
-		{
-			return;
-		}
-		if (_leftArmSetPoseMethod == null)
-		{
-			_leftArmSetPoseMethod = typeof(PlayerAvatarLeftArm).GetMethod("SetPose", BindingFlags.Instance | BindingFlags.NonPublic);
-		}
-		if (_leftArmAnimatePoseMethod == null)
-		{
-			_leftArmAnimatePoseMethod = typeof(PlayerAvatarLeftArm).GetMethod("AnimatePose", BindingFlags.Instance | BindingFlags.NonPublic);
-		}
-		_leftArmSetPoseMethod?.Invoke(arm, new object[1] { pose });
-		_leftArmAnimatePoseMethod?.Invoke(arm, null);
-	}
 
-	private bool IsPhysGrabBeamActive(PhysGrabber physGrabber)
-	{
-		if ((Object)(object)physGrabber == (Object)null)
-		{
-			return false;
-		}
-		if (_physGrabBeamActiveField == null)
-		{
-			_physGrabBeamActiveField = typeof(PhysGrabber).GetField("physGrabBeamActive", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
-		}
-		return _physGrabBeamActiveField != null && _physGrabBeamActiveField.GetValue(physGrabber) is bool flag && flag;
-	}
 
-	private PlayerAvatarRightArm GetPlayerAvatarRightArm(PlayerAvatarVisuals visuals)
-	{
-		if ((Object)(object)visuals == (Object)null)
-		{
-			return null;
-		}
-		if (_playerAvatarRightArmField == null)
-		{
-			_playerAvatarRightArmField = typeof(PlayerAvatarVisuals).GetField("playerAvatarRightArm", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
-		}
-		object value = _playerAvatarRightArmField?.GetValue(visuals);
-		PlayerAvatarRightArm val = (PlayerAvatarRightArm)((value is PlayerAvatarRightArm) ? value : null);
-		return (Object)(object)val != (Object)null ? val : ((Component)visuals).GetComponentInChildren<PlayerAvatarRightArm>(true);
-	}
+
+
+
+
+
+
+
+
 
 	private static void ClearCameraOverride(CameraPosition cameraPosition)
 	{
@@ -3688,29 +3222,7 @@ public sealed class Plugin : BaseUnityPlugin
 		return true;
 	}
 
-	private void UpdateDebugPoints(Vector3 anchor, Vector3 headCenter)
-	{
-		//IL_0071: Unknown result type (might be due to invalid IL or missing references)
-		//IL_00a3: Unknown result type (might be due to invalid IL or missing references)
-		bool flag = _debugShowCameraPoints != null && _debugShowCameraPoints.Value && _thirdPersonActive && !_temporarilyFirstPerson;
-		if ((Object)(object)_debugAnchorPoint != (Object)null)
-		{
-			((Component)_debugAnchorPoint).gameObject.SetActive(false);
-		}
-		if ((Object)(object)_debugHeadPoint != (Object)null)
-		{
-			((Component)_debugHeadPoint).gameObject.SetActive(flag);
-			if (flag)
-			{
-				_debugHeadPoint.position = headCenter;
-			}
-		}
-		if (flag && Time.time >= _nextCameraDebugLogTime)
-		{
-			_nextCameraDebugLogTime = Time.time + 0.5f;
-			Logger.LogInfo((object)$"[ThirdPersonDebug] head={headCenter} currentDistance={_currentDistance:0.00} resolvedDistance={_resolvedDistance:0.00}");
-		}
-	}
+
 
 	private static void AddColliderRenderers(Collider collider, HashSet<Renderer> renderers)
 	{
@@ -5345,18 +4857,7 @@ public sealed class Plugin : BaseUnityPlugin
 		return GetHeadCenterPoint(avatar);
 	}
 
-	private static Vector3 GetCharacterBodyDebugOrigin(PlayerAvatar avatar, Vector3 grabOrigin)
-	{
-		//IL_0009: Unknown result type (might be due to invalid IL or missing references)
-		//IL_000e: Unknown result type (might be due to invalid IL or missing references)
-		//IL_0013: Unknown result type (might be due to invalid IL or missing references)
-		if ((Object)(object)avatar == (Object)null)
-		{
-			return grabOrigin;
-		}
-		Vector3 position = ((Component)avatar).transform.position;
-		return Vector3.Lerp(position, grabOrigin, 0.45f);
-	}
+
 
 	private Vector3 GetStableVisionOrigin(PlayerAvatar avatar, Transform visionTransform)
 	{
@@ -5455,137 +4956,13 @@ public sealed class Plugin : BaseUnityPlugin
 		return characterOrigin + val2.normalized * num;
 	}
 
-	private void UpdateGrabDebugVisuals(Vector3 grabOrigin, Vector3 cameraRayDebugOrigin, Vector3 cameraHitPoint, Vector3 grabTarget, float grabRange, bool hasCameraHit, bool hitIsReachable)
-	{
-		//IL_00b7: Unknown result type (might be due to invalid IL or missing references)
-		//IL_00c1: Unknown result type (might be due to invalid IL or missing references)
-		//IL_00be: Unknown result type (might be due to invalid IL or missing references)
-		//IL_00c2: Unknown result type (might be due to invalid IL or missing references)
-		//IL_00ca: Unknown result type (might be due to invalid IL or missing references)
-		//IL_00cb: Unknown result type (might be due to invalid IL or missing references)
-		//IL_00d8: Unknown result type (might be due to invalid IL or missing references)
-		//IL_00e0: Unknown result type (might be due to invalid IL or missing references)
-		//IL_00dd: Unknown result type (might be due to invalid IL or missing references)
-		//IL_00ee: Unknown result type (might be due to invalid IL or missing references)
-		//IL_00f0: Unknown result type (might be due to invalid IL or missing references)
-		//IL_010a: Unknown result type (might be due to invalid IL or missing references)
-		//IL_0115: Unknown result type (might be due to invalid IL or missing references)
-		//IL_0116: Unknown result type (might be due to invalid IL or missing references)
-		//IL_0117: Unknown result type (might be due to invalid IL or missing references)
-		//IL_0130: Unknown result type (might be due to invalid IL or missing references)
-		//IL_013c: Unknown result type (might be due to invalid IL or missing references)
-		//IL_013d: Unknown result type (might be due to invalid IL or missing references)
-		//IL_013f: Unknown result type (might be due to invalid IL or missing references)
-		//IL_0147: Unknown result type (might be due to invalid IL or missing references)
-		//IL_0149: Unknown result type (might be due to invalid IL or missing references)
-		//IL_014a: Unknown result type (might be due to invalid IL or missing references)
-		//IL_014f: Unknown result type (might be due to invalid IL or missing references)
-		//IL_0151: Unknown result type (might be due to invalid IL or missing references)
-		//IL_0169: Unknown result type (might be due to invalid IL or missing references)
-		//IL_0160: Unknown result type (might be due to invalid IL or missing references)
-		//IL_017a: Unknown result type (might be due to invalid IL or missing references)
-		//IL_017f: Unknown result type (might be due to invalid IL or missing references)
-		//IL_0184: Unknown result type (might be due to invalid IL or missing references)
-		//IL_0198: Unknown result type (might be due to invalid IL or missing references)
-		//IL_01a4: Unknown result type (might be due to invalid IL or missing references)
-		//IL_01a5: Unknown result type (might be due to invalid IL or missing references)
-		//IL_01a7: Unknown result type (might be due to invalid IL or missing references)
-		if (_debugShowGrabSelection == null || !_debugShowGrabSelection.Value || !_thirdPersonActive || _temporarilyFirstPerson)
-		{
-			HideGrabDebugVisuals();
-			return;
-		}
-		Color val = default(Color);
-		val = new Color(1f, 0.85f, 0.05f, 0.95f);
-		Color val2 = default(Color);
-		val2 = new Color(0.2f, 1f, 0.25f, 0.95f);
-		Color val3 = default(Color);
-		val3 = new Color(0.25f, 0.95f, 1f, 0.95f);
-		Color val4 = default(Color);
-		val4 = new Color(1f, 0.1f, 0.08f, 0.95f);
-		Color color = default(Color);
-		color = new Color(1f, 1f, 1f, 0.45f);
-		Color val5 = ((!hasCameraHit) ? val3 : (hitIsReachable ? val2 : val4));
-		SetDebugPoint(_debugGrabOriginPoint, grabOrigin, val3, active: true);
-		SetDebugPoint(_debugGrabCameraHitPoint, cameraHitPoint, hasCameraHit ? val5 : val, active: true);
-		SetDebugPoint(_debugGrabTargetPoint, grabTarget, val5, active: true);
-		SetDebugLine(GetOrCreateDebugLine(ref _debugGrabCameraRayLine, ref _debugGrabCameraRayMaterial, "REPO Native Third Person Grab Camera Ray Debug", val, 0.018f), cameraRayDebugOrigin, cameraHitPoint, val, active: true);
-		SetDebugLine(GetOrCreateDebugLine(ref _debugGrabCharacterRayLine, ref _debugGrabCharacterRayMaterial, "REPO Native Third Person Grab Character Ray Debug", val5, 0.028f), grabOrigin, grabTarget, val5, active: true);
-		Vector3 val6 = grabTarget - grabOrigin;
-		Vector3 end = grabOrigin + ((val6.sqrMagnitude > 0.0001f) ? val6.normalized : Vector3.forward) * Mathf.Max(0.1f, grabRange);
-		SetDebugLine(GetOrCreateDebugLine(ref _debugGrabRangeLine, ref _debugGrabRangeMaterial, "REPO Native Third Person Grab Range Debug", color, 0.012f), grabOrigin, end, color, active: true);
-	}
 
-	private static void SetDebugPoint(Transform point, Vector3 position, Color color, bool active)
-	{
-		//IL_001d: Unknown result type (might be due to invalid IL or missing references)
-		//IL_0047: Unknown result type (might be due to invalid IL or missing references)
-		if ((Object)(object)point == (Object)null)
-		{
-			return;
-		}
-		GameObject gameObject = ((Component)point).gameObject;
-		gameObject.SetActive(active);
-		if (active)
-		{
-			point.position = position;
-			Renderer component = gameObject.GetComponent<Renderer>();
-			if ((Object)(object)component != (Object)null && (Object)(object)component.material != (Object)null)
-			{
-				component.material.color = color;
-			}
-		}
-	}
 
-	private static void SetDebugLine(LineRenderer line, Vector3 start, Vector3 end, Color color, bool active)
-	{
-		//IL_001d: Unknown result type (might be due to invalid IL or missing references)
-		//IL_0024: Unknown result type (might be due to invalid IL or missing references)
-		//IL_002c: Unknown result type (might be due to invalid IL or missing references)
-		//IL_0034: Unknown result type (might be due to invalid IL or missing references)
-		//IL_0065: Unknown result type (might be due to invalid IL or missing references)
-		if ((Object)(object)line == (Object)null)
-		{
-			return;
-		}
-		((Component)line).gameObject.SetActive(active);
-		if (active)
-		{
-			line.startColor = color;
-			line.endColor = color;
-			line.SetPosition(0, start);
-			line.SetPosition(1, end);
-			if ((Object)(object)((Renderer)line).material != (Object)null && ((Renderer)line).material.HasProperty("_Color"))
-			{
-				((Renderer)line).material.SetColor("_Color", color);
-			}
-		}
-	}
 
-	private void HideGrabDebugVisuals()
-	{
-		//IL_0006: Unknown result type (might be due to invalid IL or missing references)
-		//IL_000b: Unknown result type (might be due to invalid IL or missing references)
-		//IL_001c: Unknown result type (might be due to invalid IL or missing references)
-		//IL_0021: Unknown result type (might be due to invalid IL or missing references)
-		//IL_0032: Unknown result type (might be due to invalid IL or missing references)
-		//IL_0037: Unknown result type (might be due to invalid IL or missing references)
-		//IL_0048: Unknown result type (might be due to invalid IL or missing references)
-		//IL_004d: Unknown result type (might be due to invalid IL or missing references)
-		//IL_0052: Unknown result type (might be due to invalid IL or missing references)
-		//IL_0063: Unknown result type (might be due to invalid IL or missing references)
-		//IL_0068: Unknown result type (might be due to invalid IL or missing references)
-		//IL_006d: Unknown result type (might be due to invalid IL or missing references)
-		//IL_007e: Unknown result type (might be due to invalid IL or missing references)
-		//IL_0083: Unknown result type (might be due to invalid IL or missing references)
-		//IL_0088: Unknown result type (might be due to invalid IL or missing references)
-		SetDebugPoint(_debugGrabOriginPoint, Vector3.zero, Color.clear, active: false);
-		SetDebugPoint(_debugGrabCameraHitPoint, Vector3.zero, Color.clear, active: false);
-		SetDebugPoint(_debugGrabTargetPoint, Vector3.zero, Color.clear, active: false);
-		SetDebugLine(_debugGrabCameraRayLine, Vector3.zero, Vector3.zero, Color.clear, active: false);
-		SetDebugLine(_debugGrabCharacterRayLine, Vector3.zero, Vector3.zero, Color.clear, active: false);
-		SetDebugLine(_debugGrabRangeLine, Vector3.zero, Vector3.zero, Color.clear, active: false);
-	}
+
+
+
+
 
 	internal bool TryGetSelectionOverride(PlayerLocalCamera localCamera, ref Transform result)
 	{
