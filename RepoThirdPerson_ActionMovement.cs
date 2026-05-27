@@ -15,14 +15,14 @@ using UnityEngine.Rendering.PostProcessing;
 
 [assembly: AssemblyCompany("RepoThirdPerson")]
 [assembly: AssemblyConfiguration("Release")]
-[assembly: AssemblyFileVersion("1.3.1.0")]
-[assembly: AssemblyInformationalVersion("1.3.1")]
+[assembly: AssemblyFileVersion("1.3.2.0")]
+[assembly: AssemblyInformationalVersion("1.3.2")]
 [assembly: AssemblyProduct("RepoThirdPerson")]
 [assembly: AssemblyTitle("RepoThirdPerson")]
-[assembly: AssemblyVersion("1.3.1.0")]
+[assembly: AssemblyVersion("1.3.2.0")]
 namespace RepoThirdPerson;
 
-[BepInPlugin("com.reponativemods.thirdperson", "REPO Native Third Person", "1.3.1")]
+[BepInPlugin("com.reponativemods.thirdperson", "REPO Native Third Person", "1.3.2")]
 public sealed partial class Plugin : BaseUnityPlugin
 {
 	private struct ClipPlaneState
@@ -38,7 +38,7 @@ public sealed partial class Plugin : BaseUnityPlugin
 
 	public const string PluginName = "REPO Native Third Person";
 
-	public const string PluginVersion = "1.3.1";
+	public const string PluginVersion = "1.3.2";
 
 	private const string SelectionTransformName = "REPO Native Third Person Selection Transform";
 
@@ -3019,7 +3019,7 @@ public sealed partial class Plugin : BaseUnityPlugin
 		}
 		num = Mathf.Min(num, ResolveReverseCameraOcclusionDistance(headCenterPoint, val2, magnitude, num2, cameraOcclusionMask));
 		float num4 = Mathf.Clamp((_resolvedDistance > 0f) ? _resolvedDistance : _currentDistance, 0.05f, _maxDistance.Value);
-		float num5 = Mathf.Max(_cameraCloseSmoothTime.Value, _cameraFarSmoothTime.Value);
+		float num5 = (num < num4) ? _cameraCloseSmoothTime.Value : _cameraFarSmoothTime.Value;
 		_resolvedDistance = Mathf.SmoothDamp(num4, num, ref _resolvedDistanceVelocity, Mathf.Max(0.01f, num5), float.PositiveInfinity, Time.deltaTime);
 		_resolvedDistance = Mathf.Clamp(_resolvedDistance, 0.05f, _maxDistance.Value);
 		Vector3 val3 = headCenterPoint + val2 * _resolvedDistance;

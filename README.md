@@ -34,6 +34,10 @@ Source code / bug reports: [sam0324sam/REPO-Native-Third-Person-Action-Movement]
 - 可顯示抓取 debug 線與狀態點
 - 純 client-side，其他玩家不需要安裝
 
+### 1.3.2 更新
+
+- 優化相機碰撞平滑時間，當視野被牆壁擋住時能快速拉近，離開牆壁時能平滑回彈。
+
 ### 1.3.1 更新
 
 - 修正第三人稱會抓到「攝影機和角色之間」物品的問題。
@@ -135,6 +139,10 @@ This fork is not affiliated with Team_Bingus.
 - Third-person map/tablet overlay support
 - Debug grab rays and points for troubleshooting
 - Client-side only; other players do not need the mod
+
+### Version 1.3.2 Changes
+
+- Refined camera collision smoothing so camera pulls in quickly when obstructed but returns back out smoothly.
 
 ### Version 1.3.1 Changes
 

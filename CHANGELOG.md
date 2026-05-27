@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.3.2
+
+- Refined camera collision smoothing so camera pulls in quickly when obstructed but returns back out smoothly.
+
 ## 1.3.1
 
 - Fixed third-person grabbing being able to target objects between the camera and the character.
