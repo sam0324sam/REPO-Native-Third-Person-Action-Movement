@@ -227,6 +227,22 @@ public sealed class Plugin : BaseUnityPlugin
 			Instance?.TickFlashlightControllerPostUpdate(__instance);
 		}
 
+		[HarmonyPostfix]
+		[HarmonyPriority(0)]
+		[HarmonyPatch(typeof(PlayerAvatarRightArm), "Update")]
+		private static void PlayerAvatarRightArmUpdatePostfix(PlayerAvatarRightArm __instance)
+		{
+			Instance?.ForceLocalThirdPersonRightArmPose(__instance);
+		}
+
+		[HarmonyPostfix]
+		[HarmonyPriority(0)]
+		[HarmonyPatch(typeof(PlayerAvatarLeftArm), "Update")]
+		private static void PlayerAvatarLeftArmUpdatePostfix(PlayerAvatarLeftArm __instance)
+		{
+			Instance?.ForceLocalThirdPersonLeftArmPose(__instance);
+		}
+
 		[HarmonyPrefix]
 		[HarmonyPatch(typeof(SemiPuke), "PukeActive")]
 		private static void SemiPukePukeActivePrefix(ref Quaternion _direction)
@@ -480,6 +496,20 @@ public sealed class Plugin : BaseUnityPlugin
 	private FieldInfo _cachedModelRenderersField;
 
 	private MethodInfo _applyModelToVisualMethod;
+
+	private MethodInfo _rightArmGrabberPoseOverrideMethod;
+
+	private MethodInfo _rightArmSetPoseMethod;
+
+	private MethodInfo _rightArmAnimatePoseMethod;
+
+	private MethodInfo _leftArmSetPoseMethod;
+
+	private MethodInfo _leftArmAnimatePoseMethod;
+
+	private FieldInfo _physGrabBeamActiveField;
+
+	private FieldInfo _playerAvatarRightArmField;
 
 	private bool _moddedModelUpdatePatched;
 
@@ -2379,6 +2409,103 @@ public sealed class Plugin : BaseUnityPlugin
 		{
 			playerAvatar.flashlightLightAim.clientAimPoint = transform.position + val * 100f;
 		}
+	}
+
+	internal void ForceLocalThirdPersonRightArmPose(PlayerAvatarRightArm arm)
+	{
+		if (!_thirdPersonActive || _temporarilyFirstPerson || (Object)(object)arm == (Object)null || (Object)(object)arm.playerAvatar != (Object)(object)PlayerAvatar.instance)
+		{
+			return;
+		}
+		PhysGrabber physGrabber = arm.playerAvatar.physGrabber;
+		if ((Object)(object)physGrabber == (Object)null || (!IsPhysGrabBeamActive(physGrabber) && !physGrabber.grabbed))
+		{
+			return;
+		}
+		if (_rightArmGrabberPoseOverrideMethod == null)
+		{
+			_rightArmGrabberPoseOverrideMethod = typeof(PlayerAvatarRightArm).GetMethod("GrabberPoseOverride", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+		}
+		_rightArmGrabberPoseOverrideMethod?.Invoke(arm, new object[1] { 0.2f });
+		ForceRightArmPoseNow(arm, arm.grabberPose);
+	}
+
+	internal void ForceLocalThirdPersonLeftArmPose(PlayerAvatarLeftArm arm)
+	{
+		if (!_thirdPersonActive || _temporarilyFirstPerson || (Object)(object)arm == (Object)null || (Object)(object)arm.playerAvatar != (Object)(object)PlayerAvatar.instance)
+		{
+			return;
+		}
+		FlashlightController flashlightController = arm.flashlightController;
+		if ((Object)(object)flashlightController == (Object)null || (!flashlightController.LightActive && ((Object)(object)flashlightController.spotlight == (Object)null || !flashlightController.spotlight.enabled)))
+		{
+			return;
+		}
+		ForceLeftArmPoseNow(arm, arm.flashlightPose);
+	}
+
+	private void ForceRightArmPoseNow(PlayerAvatarRightArm arm, Vector3 pose)
+	{
+		if ((Object)(object)arm == (Object)null)
+		{
+			return;
+		}
+		if (_rightArmSetPoseMethod == null)
+		{
+			_rightArmSetPoseMethod = typeof(PlayerAvatarRightArm).GetMethod("SetPose", BindingFlags.Instance | BindingFlags.NonPublic);
+		}
+		if (_rightArmAnimatePoseMethod == null)
+		{
+			_rightArmAnimatePoseMethod = typeof(PlayerAvatarRightArm).GetMethod("AnimatePose", BindingFlags.Instance | BindingFlags.NonPublic);
+		}
+		_rightArmSetPoseMethod?.Invoke(arm, new object[1] { pose });
+		_rightArmAnimatePoseMethod?.Invoke(arm, null);
+	}
+
+	private void ForceLeftArmPoseNow(PlayerAvatarLeftArm arm, Vector3 pose)
+	{
+		if ((Object)(object)arm == (Object)null)
+		{
+			return;
+		}
+		if (_leftArmSetPoseMethod == null)
+		{
+			_leftArmSetPoseMethod = typeof(PlayerAvatarLeftArm).GetMethod("SetPose", BindingFlags.Instance | BindingFlags.NonPublic);
+		}
+		if (_leftArmAnimatePoseMethod == null)
+		{
+			_leftArmAnimatePoseMethod = typeof(PlayerAvatarLeftArm).GetMethod("AnimatePose", BindingFlags.Instance | BindingFlags.NonPublic);
+		}
+		_leftArmSetPoseMethod?.Invoke(arm, new object[1] { pose });
+		_leftArmAnimatePoseMethod?.Invoke(arm, null);
+	}
+
+	private bool IsPhysGrabBeamActive(PhysGrabber physGrabber)
+	{
+		if ((Object)(object)physGrabber == (Object)null)
+		{
+			return false;
+		}
+		if (_physGrabBeamActiveField == null)
+		{
+			_physGrabBeamActiveField = typeof(PhysGrabber).GetField("physGrabBeamActive", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+		}
+		return _physGrabBeamActiveField != null && _physGrabBeamActiveField.GetValue(physGrabber) is bool flag && flag;
+	}
+
+	private PlayerAvatarRightArm GetPlayerAvatarRightArm(PlayerAvatarVisuals visuals)
+	{
+		if ((Object)(object)visuals == (Object)null)
+		{
+			return null;
+		}
+		if (_playerAvatarRightArmField == null)
+		{
+			_playerAvatarRightArmField = typeof(PlayerAvatarVisuals).GetField("playerAvatarRightArm", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+		}
+		object value = _playerAvatarRightArmField?.GetValue(visuals);
+		PlayerAvatarRightArm val = (PlayerAvatarRightArm)((value is PlayerAvatarRightArm) ? value : null);
+		return (Object)(object)val != (Object)null ? val : ((Component)visuals).GetComponentInChildren<PlayerAvatarRightArm>(true);
 	}
 
 	private static void ClearCameraOverride(CameraPosition cameraPosition)
