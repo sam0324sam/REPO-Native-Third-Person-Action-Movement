@@ -222,6 +222,20 @@ public sealed partial class Plugin
 			Instance?.ForceLocalThirdPersonLeftArmPose(__instance);
 		}
 
+		[HarmonyPostfix]
+		[HarmonyPatch(typeof(EnemyOnScreen), "Awake")]
+		private static void EnemyOnScreenAwakePostfix(EnemyOnScreen __instance)
+		{
+			Instance?.EnableEnemyOnScreenDuringThirdPerson(__instance);
+		}
+
+		[HarmonyPostfix]
+		[HarmonyPatch(typeof(EnemyOnScreen), "OnEnable")]
+		private static void EnemyOnScreenOnEnablePostfix(EnemyOnScreen __instance)
+		{
+			Instance?.EnableEnemyOnScreenDuringThirdPerson(__instance);
+		}
+
 		[HarmonyPrefix]
 		[HarmonyPatch(typeof(SemiPuke), "PukeActive")]
 		private static void SemiPukePukeActivePrefix(ref Quaternion _direction)

@@ -28,7 +28,7 @@
 - Added third-person map/tablet overlay support.
 - Disabled near-camera local body fade/outline behavior by default.
 - Improved custom local player model visibility and compatibility.
-- Added bug report contact information: Discord ID `211491216032923648`.
+- Added bug report and source-code links through GitHub.
 
 ## 1.2.0
 

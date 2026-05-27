@@ -158,4 +158,5 @@ public sealed partial class Plugin
 		PlayerAvatarRightArm val = (PlayerAvatarRightArm)((value is PlayerAvatarRightArm) ? value : null);
 		return (Object)(object)val != (Object)null ? val : ((Component)visuals).GetComponentInChildren<PlayerAvatarRightArm>(true);
 	}
+
 }
