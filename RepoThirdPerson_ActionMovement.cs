@@ -805,7 +805,7 @@ public sealed class Plugin : BaseUnityPlugin
 		LockAcceptedGrabCameraSettings();
 		_debugShowCameraPoints = ((BaseUnityPlugin)this).Config.Bind<bool>("Debug", "ShowCameraPoints", false, "Show debug dots for camera anchor (green) and head center point (red).");
 		_debugShowGrabSelection = ((BaseUnityPlugin)this).Config.Bind<bool>("Debug", "ShowGrabSelection", true, "Show third-person grab debug lines and points. Yellow = camera crosshair ray, cyan/green = character grab ray/valid target, red = unreachable camera hit.");
-		_debugLogCameraSettings = ((BaseUnityPlugin)this).Config.Bind<bool>("Debug", "LogCameraSettings", true, "Periodically log current camera distance, resolved collision distance, offsets, and aim/camera angles while third-person is active.");
+		_debugLogCameraSettings = ((BaseUnityPlugin)this).Config.Bind<bool>("Debug", "LogCameraSettings", false, "Log camera distance, resolved collision distance, offsets, and aim/camera angles only when camera settings are adjusted.");
 		_debugCameraLogInterval = ((BaseUnityPlugin)this).Config.Bind<float>("Debug", "CameraLogInterval", 1f, new ConfigDescription("Seconds between camera setting logs when Debug.LogCameraSettings is enabled.", (AcceptableValueBase)new AcceptableValueRange<float>(0.2f, 10f), Array.Empty<object>()));
 		_currentDistance = ClampDistance(_defaultDistance.Value);
 		_resolvedDistance = _currentDistance;
@@ -1242,7 +1242,7 @@ public sealed class Plugin : BaseUnityPlugin
 
 	internal void TickModdedModelPlayerAvatarPostUpdate(object moddedModelPlayerAvatar)
 	{
-		if (_thirdPersonActive && !_temporarilyFirstPerson && moddedModelPlayerAvatar != null)
+		if (_thirdPersonActive && !_temporarilyFirstPerson && moddedModelPlayerAvatar != null && IsLocalModdedModelPlayerAvatar(moddedModelPlayerAvatar))
 		{
 			object? obj = _currentModelInstanceField?.GetValue(moddedModelPlayerAvatar);
 			GameObject val = (GameObject)((obj is GameObject) ? obj : null);
@@ -1769,6 +1769,30 @@ public sealed class Plugin : BaseUnityPlugin
 		{
 			direction = visualRotation;
 		}
+	}
+
+	private bool IsLocalModdedModelPlayerAvatar(object moddedModelPlayerAvatar)
+	{
+		Component val = (Component)((moddedModelPlayerAvatar is Component) ? moddedModelPlayerAvatar : null);
+		if ((Object)(object)val == (Object)null)
+		{
+			return false;
+		}
+		if ((Object)(object)_cachedModelComponent != (Object)null && (Object)(object)val == (Object)(object)_cachedModelComponent)
+		{
+			return true;
+		}
+		PlayerAvatar instance = PlayerAvatar.instance;
+		if ((Object)(object)instance == (Object)null)
+		{
+			return false;
+		}
+		PlayerAvatar componentInParent = ((Component)val).GetComponentInParent<PlayerAvatar>();
+		if ((Object)(object)componentInParent != (Object)null)
+		{
+			return (Object)(object)componentInParent == (Object)(object)instance;
+		}
+		return (Object)(object)instance.playerAvatarVisuals != (Object)null && val.transform.IsChildOf(((Component)instance.playerAvatarVisuals).transform);
 	}
 
 	private bool TryGetVisualFacingRotation(out Quaternion rotation)
@@ -2303,9 +2327,57 @@ public sealed class Plugin : BaseUnityPlugin
 
 	internal void TickFlashlightControllerPostUpdate(FlashlightController controller)
 	{
-		if (_thirdPersonActive && !_temporarilyFirstPerson && !((Object)(object)controller == (Object)null) && !((Object)(object)controller.PlayerAvatar == (Object)null) && !((Object)(object)controller.PlayerAvatar != (Object)(object)PlayerAvatar.instance) && (Object)(object)controller.halo != (Object)null)
+		if (_thirdPersonActive && !_temporarilyFirstPerson && !((Object)(object)controller == (Object)null) && !((Object)(object)controller.PlayerAvatar == (Object)null) && !((Object)(object)controller.PlayerAvatar != (Object)(object)PlayerAvatar.instance))
 		{
-			controller.halo.enabled = false;
+			controller.SetThirdPerson(true);
+			AlignLocalThirdPersonFlashlight(controller);
+			if ((Object)(object)controller.halo != (Object)null)
+			{
+				controller.halo.enabled = false;
+			}
+		}
+	}
+
+	private void AlignLocalThirdPersonFlashlight(FlashlightController controller)
+	{
+		//IL_003c: Unknown result type (might be due to invalid IL or missing references)
+		//IL_0041: Unknown result type (might be due to invalid IL or missing references)
+		//IL_0046: Unknown result type (might be due to invalid IL or missing references)
+		//IL_0061: Unknown result type (might be due to invalid IL or missing references)
+		//IL_0068: Unknown result type (might be due to invalid IL or missing references)
+		//IL_006e: Unknown result type (might be due to invalid IL or missing references)
+		//IL_009e: Unknown result type (might be due to invalid IL or missing references)
+		//IL_00a3: Unknown result type (might be due to invalid IL or missing references)
+		//IL_00bd: Unknown result type (might be due to invalid IL or missing references)
+		PlayerAvatar playerAvatar = controller.PlayerAvatar;
+		if ((Object)(object)playerAvatar == (Object)null)
+		{
+			return;
+		}
+		Vector3 val;
+		if (_hasVisualFacingRotation)
+		{
+			val = _visualFacingRotation * Vector3.forward;
+		}
+		else if ((Object)(object)playerAvatar.playerAvatarVisuals != (Object)null)
+		{
+			val = ((Component)playerAvatar.playerAvatarVisuals).transform.forward;
+		}
+		else
+		{
+			val = ((Component)playerAvatar).transform.forward;
+		}
+		val.y = 0f;
+		if (val.sqrMagnitude < 0.0001f)
+		{
+			return;
+		}
+		val.Normalize();
+		Transform transform = ((Component)controller).transform;
+		transform.rotation = Quaternion.LookRotation(val, Vector3.up);
+		if ((Object)(object)playerAvatar.flashlightLightAim != (Object)null)
+		{
+			playerAvatar.flashlightLightAim.clientAimPoint = transform.position + val * 100f;
 		}
 	}
 
@@ -3135,15 +3207,7 @@ public sealed class Plugin : BaseUnityPlugin
 
 	private void LogCameraSettingsIfNeeded()
 	{
-		if (_thirdPersonActive && _debugLogCameraSettings != null && _debugLogCameraSettings.Value)
-		{
-			float num = Mathf.Max(0.2f, (_debugCameraLogInterval != null) ? _debugCameraLogInterval.Value : 1f);
-			if (!(Time.time < _nextCameraSettingsLogTime))
-			{
-				_nextCameraSettingsLogTime = Time.time + num;
-				LogCameraSettings("Camera snapshot");
-			}
-		}
+		// Periodic camera snapshots are intentionally disabled; they flood BepInEx logs during normal play.
 	}
 
 	private void LogCameraSettings(string reason)
@@ -5130,7 +5194,7 @@ public sealed class Plugin : BaseUnityPlugin
 		}
 		_selectionTransform.position = val2;
 		_selectionTransform.rotation = Quaternion.LookRotation(val5.normalized, Vector3.up);
-		UpdateGrabDebugVisuals(val2, cameraCenterRay.origin, cameraHitPoint, val3, currentGrabRange, hasCameraHit, hitIsReachable);
+		UpdateGrabDebugVisuals(val2, GetCharacterBodyDebugOrigin(avatar, val2), cameraHitPoint, val3, currentGrabRange, hasCameraHit, hitIsReachable);
 	}
 
 	private Vector3 GetCharacterGrabOrigin(PlayerAvatar avatar)
@@ -5152,6 +5216,19 @@ public sealed class Plugin : BaseUnityPlugin
 			return _stableGrabOrigin;
 		}
 		return GetHeadCenterPoint(avatar);
+	}
+
+	private static Vector3 GetCharacterBodyDebugOrigin(PlayerAvatar avatar, Vector3 grabOrigin)
+	{
+		//IL_0009: Unknown result type (might be due to invalid IL or missing references)
+		//IL_000e: Unknown result type (might be due to invalid IL or missing references)
+		//IL_0013: Unknown result type (might be due to invalid IL or missing references)
+		if ((Object)(object)avatar == (Object)null)
+		{
+			return grabOrigin;
+		}
+		Vector3 position = ((Component)avatar).transform.position;
+		return Vector3.Lerp(position, grabOrigin, 0.45f);
 	}
 
 	private Vector3 GetStableVisionOrigin(PlayerAvatar avatar, Transform visionTransform)
@@ -5251,7 +5328,7 @@ public sealed class Plugin : BaseUnityPlugin
 		return characterOrigin + val2.normalized * num;
 	}
 
-	private void UpdateGrabDebugVisuals(Vector3 grabOrigin, Vector3 cameraOrigin, Vector3 cameraHitPoint, Vector3 grabTarget, float grabRange, bool hasCameraHit, bool hitIsReachable)
+	private void UpdateGrabDebugVisuals(Vector3 grabOrigin, Vector3 cameraRayDebugOrigin, Vector3 cameraHitPoint, Vector3 grabTarget, float grabRange, bool hasCameraHit, bool hitIsReachable)
 	{
 		//IL_00b7: Unknown result type (might be due to invalid IL or missing references)
 		//IL_00c1: Unknown result type (might be due to invalid IL or missing references)
@@ -5305,7 +5382,7 @@ public sealed class Plugin : BaseUnityPlugin
 		SetDebugPoint(_debugGrabOriginPoint, grabOrigin, val3, active: true);
 		SetDebugPoint(_debugGrabCameraHitPoint, cameraHitPoint, hasCameraHit ? val5 : val, active: true);
 		SetDebugPoint(_debugGrabTargetPoint, grabTarget, val5, active: true);
-		SetDebugLine(GetOrCreateDebugLine(ref _debugGrabCameraRayLine, ref _debugGrabCameraRayMaterial, "REPO Native Third Person Grab Camera Ray Debug", val, 0.018f), cameraOrigin, cameraHitPoint, val, active: true);
+		SetDebugLine(GetOrCreateDebugLine(ref _debugGrabCameraRayLine, ref _debugGrabCameraRayMaterial, "REPO Native Third Person Grab Camera Ray Debug", val, 0.018f), cameraRayDebugOrigin, cameraHitPoint, val, active: true);
 		SetDebugLine(GetOrCreateDebugLine(ref _debugGrabCharacterRayLine, ref _debugGrabCharacterRayMaterial, "REPO Native Third Person Grab Character Ray Debug", val5, 0.028f), grabOrigin, grabTarget, val5, active: true);
 		Vector3 val6 = grabTarget - grabOrigin;
 		Vector3 end = grabOrigin + ((val6.sqrMagnitude > 0.0001f) ? val6.normalized : Vector3.forward) * Mathf.Max(0.1f, grabRange);
