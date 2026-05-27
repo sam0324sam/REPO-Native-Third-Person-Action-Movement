@@ -1,8 +1,10 @@
 # Changelog
 
-## 1.3.2
+## 1.3.3
 
 - Refined camera collision smoothing so camera pulls in quickly when obstructed but returns back out smoothly.
+- Fixed EnemyOnScreen detection being bypassed in third-person camera override mode, enabling screen-triggered enemy behavior.
+- Fixed local third-person grabber and flashlight arm raising poses so the character model arms correctly reach forward.
 
 ## 1.3.1
 

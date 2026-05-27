@@ -15,14 +15,14 @@ using UnityEngine.Rendering.PostProcessing;
 
 [assembly: AssemblyCompany("RepoThirdPerson")]
 [assembly: AssemblyConfiguration("Release")]
-[assembly: AssemblyFileVersion("1.3.2.0")]
-[assembly: AssemblyInformationalVersion("1.3.2")]
+[assembly: AssemblyFileVersion("1.3.3.0")]
+[assembly: AssemblyInformationalVersion("1.3.3")]
 [assembly: AssemblyProduct("RepoThirdPerson")]
 [assembly: AssemblyTitle("RepoThirdPerson")]
-[assembly: AssemblyVersion("1.3.2.0")]
+[assembly: AssemblyVersion("1.3.3.0")]
 namespace RepoThirdPerson;
 
-[BepInPlugin("com.reponativemods.thirdperson", "REPO Native Third Person", "1.3.2")]
+[BepInPlugin("com.reponativemods.thirdperson", "REPO Native Third Person", "1.3.3")]
 public sealed partial class Plugin : BaseUnityPlugin
 {
 	private struct ClipPlaneState
@@ -38,7 +38,7 @@ public sealed partial class Plugin : BaseUnityPlugin
 
 	public const string PluginName = "REPO Native Third Person";
 
-	public const string PluginVersion = "1.3.2";
+	public const string PluginVersion = "1.3.3";
 
 	private const string SelectionTransformName = "REPO Native Third Person Selection Transform";
 

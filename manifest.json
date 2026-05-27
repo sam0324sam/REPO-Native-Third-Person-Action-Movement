@@ -1,6 +1,6 @@
 {
   "name": "Repo_Native_ThirdPerson_ActionMovement",
-  "version_number": "1.3.2",
+  "version_number": "1.3.3",
   "website_url": "https://github.com/sam0324sam/REPO-Native-Third-Person-Action-Movement",
   "description": "Native third-person shoulder camera for R.E.P.O. with action movement, custom-model support, improved grabbing, map support, and camera collision fixes.",
   "dependencies": [
