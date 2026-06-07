@@ -15,14 +15,14 @@ using UnityEngine.Rendering.PostProcessing;
 
 [assembly: AssemblyCompany("RepoThirdPerson")]
 [assembly: AssemblyConfiguration("Release")]
-[assembly: AssemblyFileVersion("1.3.3.0")]
-[assembly: AssemblyInformationalVersion("1.3.3")]
+[assembly: AssemblyFileVersion("1.3.5.0")]
+[assembly: AssemblyInformationalVersion("1.3.5")]
 [assembly: AssemblyProduct("RepoThirdPerson")]
 [assembly: AssemblyTitle("RepoThirdPerson")]
-[assembly: AssemblyVersion("1.3.3.0")]
+[assembly: AssemblyVersion("1.3.5.0")]
 namespace RepoThirdPerson;
 
-[BepInPlugin("com.reponativemods.thirdperson", "REPO Native Third Person", "1.3.3")]
+[BepInPlugin("com.reponativemods.thirdperson", "REPO Native Third Person", "1.3.5")]
 public sealed partial class Plugin : BaseUnityPlugin
 {
 	private struct ClipPlaneState
@@ -38,7 +38,7 @@ public sealed partial class Plugin : BaseUnityPlugin
 
 	public const string PluginName = "REPO Native Third Person";
 
-	public const string PluginVersion = "1.3.3";
+	public const string PluginVersion = "1.3.5";
 
 	private const string SelectionTransformName = "REPO Native Third Person Selection Transform";
 
@@ -1584,8 +1584,10 @@ public sealed partial class Plugin : BaseUnityPlugin
 		Vector3 val = CalculateCameraPosition(instance, transform);
 		Ray thirdPersonGameplayRay = GetThirdPersonGameplayRay(instance, _gameplayCameraPosition, transform);
 		UpdateSelectionTransform(instance, thirdPersonGameplayRay);
-		instance3.OverridePosition(val, 0.1f);
-		((Component)instance3).transform.position = val;
+		Vector3 targetCameraPos = val;
+		targetCameraPos.y -= _thirdPersonCrouchYOffset;
+		instance3.OverridePosition(targetCameraPos, 0.1f);
+		((Component)instance3).transform.position = targetCameraPos;
 		if ((Object)(object)instance.playerAvatarVisuals != (Object)null)
 		{
 			instance.playerAvatarVisuals.ShowSelfOverride(0.15f);
@@ -2121,6 +2123,10 @@ public sealed partial class Plugin : BaseUnityPlugin
 
 	private void ForceCameraCrouchLocalPosition(CameraCrouchPosition crouchPosition)
 	{
+		if (!IsInGameplayAndNotMenu())
+		{
+			return;
+		}
 		//IL_008d: Unknown result type (might be due to invalid IL or missing references)
 		if (!((Object)(object)crouchPosition == (Object)null))
 		{
@@ -2139,6 +2145,10 @@ public sealed partial class Plugin : BaseUnityPlugin
 
 	private void ForceCameraCrawlLocalPosition(CameraCrawlPosition crawlPosition)
 	{
+		if (!IsInGameplayAndNotMenu())
+		{
+			return;
+		}
 		//IL_008d: Unknown result type (might be due to invalid IL or missing references)
 		if (!((Object)(object)crawlPosition == (Object)null))
 		{
@@ -2157,24 +2167,8 @@ public sealed partial class Plugin : BaseUnityPlugin
 
 	private void ApplyFirstPersonCrouchLocalOffset(CameraPosition cameraPosition)
 	{
-		//IL_0035: Unknown result type (might be due to invalid IL or missing references)
-		//IL_003b: Unknown result type (might be due to invalid IL or missing references)
-		//IL_0040: Unknown result type (might be due to invalid IL or missing references)
-		//IL_0045: Unknown result type (might be due to invalid IL or missing references)
-		//IL_0072: Unknown result type (might be due to invalid IL or missing references)
-		//IL_0059: Unknown result type (might be due to invalid IL or missing references)
-		if (!((Object)(object)cameraPosition == (Object)null) && !_thirdPersonActive && !_temporarilyFirstPerson && !((Object)(object)cameraPosition.playerTransform == (Object)null))
-		{
-			float crouchCameraYOffset = GetCrouchCameraYOffset();
-			Vector3 localPosition = cameraPosition.playerTransform.localPosition + cameraPosition.playerOffset;
-			if (Mathf.Abs(crouchCameraYOffset) <= 0.001f)
-			{
-				((Component)cameraPosition).transform.localPosition = localPosition;
-				return;
-			}
-			localPosition.y += crouchCameraYOffset;
-			((Component)cameraPosition).transform.localPosition = localPosition;
-		}
+		// 第一人稱相機在 overrideActive = false 時會自動繼承 CameraCrouchPosition 的 localPosition 位移。
+		// 此處不需要且不應手動進行高度偏移，避免雙倍扣除高度。
 	}
 
 	private float GetCrouchCameraYOffset()
@@ -2231,6 +2225,10 @@ public sealed partial class Plugin : BaseUnityPlugin
 
 	private bool ShouldForceFirstPersonCrouchMode(PlayerLocalCamera localCamera)
 	{
+		if (!IsInGameplayAndNotMenu())
+		{
+			return false;
+		}
 		if ((Object)(object)localCamera == (Object)null || (Object)(object)localCamera.playerAvatar == (Object)null || localCamera.playerAvatar != PlayerAvatar.instance)
 		{
 			return false;
@@ -2240,6 +2238,23 @@ public sealed partial class Plugin : BaseUnityPlugin
 			return false;
 		}
 		if ((Object)(object)Map.Instance != (Object)null && Map.Instance.Active)
+		{
+			return false;
+		}
+		return true;
+	}
+
+	private bool IsInGameplayAndNotMenu()
+	{
+		if ((Object)(object)GameDirector.instance == (Object)null || (int)GameDirector.instance.currentState != 2)
+		{
+			return false;
+		}
+		if (SemiFunc.MenuLevel())
+		{
+			return false;
+		}
+		if ((Object)(object)PlayerController.instance == (Object)null || (Object)(object)PlayerAvatar.instance == (Object)null)
 		{
 			return false;
 		}

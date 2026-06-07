@@ -34,6 +34,14 @@ Source code / bug reports: [sam0324sam/REPO-Native-Third-Person-Action-Movement]
 - 可顯示抓取 debug 線與狀態點
 - 純 client-side，其他玩家不需要安裝
 
+### 1.3.5 更新
+
+- 修復第三人稱（TP）模式下下蹲與爬行壓頭時，相機位置因 Unity 原生層級疊加而被雙倍扣除（導致視野過低貼地或掉入地底）的 Bug。
+
+### 1.3.4 更新
+
+- 修正第一人稱（FP）模式下下蹲與爬行時，視野高度不會隨之下降（包含頭頂有障礙物時高度無法進一步壓低）的問題。
+
 ### 1.3.3 更新
 
 - 優化相機碰撞平滑時間，當視野被牆壁擋住時能快速拉近，離開牆壁時能平滑回彈。
@@ -141,6 +149,14 @@ This fork is not affiliated with Team_Bingus.
 - Third-person map/tablet overlay support
 - Debug grab rays and points for troubleshooting
 - Client-side only; other players do not need the mod
+
+### Version 1.3.5 Changes
+
+- Fixed a bug in third-person (TP) mode where the camera height was doubly subtracted due to parent-child hierarchy displacement, which caused the view to drop excessively low or clip beneath the ground when crouching or crawling under low obstacles.
+
+### Version 1.3.4 Changes
+
+- Fixed a bug in first-person (FP) mode where the camera height did not lower during crouching or crawling under low ceilings and obstacles.
 
 ### Version 1.3.3 Changes
 

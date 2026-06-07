@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.3.5
+
+- Fixed a bug in third-person (TP) mode where the camera height was doubly subtracted due to parent-child hierarchy displacement, which caused the view to drop excessively low or clip beneath the ground when crouching or crawling under low obstacles.
+
+## 1.3.4
+
+- Fixed a bug in first-person (FP) mode where the camera height did not lower during crouching or crawling under low ceilings and obstacles.
+
 ## 1.3.3
 
 - Refined camera collision smoothing so camera pulls in quickly when obstructed but returns back out smoothly.

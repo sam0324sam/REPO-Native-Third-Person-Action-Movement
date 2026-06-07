@@ -170,18 +170,21 @@ public sealed partial class Plugin
 		[HarmonyPatch(typeof(CameraPosition), "Update")]
 		private static void CameraPositionUpdatePostfix(CameraPosition __instance)
 		{
+			Instance?.ApplyFirstPersonCrouchLocalOffset(__instance);
 		}
 
 		[HarmonyPostfix]
 		[HarmonyPatch(typeof(CameraCrouchPosition), "Update")]
 		private static void CameraCrouchPositionUpdatePostfix(CameraCrouchPosition __instance)
 		{
+			Instance?.ForceCameraCrouchLocalPosition(__instance);
 		}
 
 		[HarmonyPostfix]
 		[HarmonyPatch(typeof(CameraCrawlPosition), "Update")]
 		private static void CameraCrawlPositionUpdatePostfix(CameraCrawlPosition __instance)
 		{
+			Instance?.ForceCameraCrawlLocalPosition(__instance);
 		}
 
 		[HarmonyPostfix]
@@ -189,6 +192,7 @@ public sealed partial class Plugin
 		private static void PlayerLocalCameraGetOverrideTransformPostfix(PlayerLocalCamera __instance, ref Transform __result)
 		{
 			Instance?.TryGetSelectionOverride(__instance, ref __result);
+			Instance?.NormalizeFirstPersonOverrideTransform(__instance, ref __result);
 		}
 
 		[HarmonyPostfix]
@@ -196,6 +200,7 @@ public sealed partial class Plugin
 		private static void PlayerLocalCameraGetOverrideActivePostfix(PlayerLocalCamera __instance, ref bool __result)
 		{
 			Instance?.TryGetSelectionOverrideActive(__instance, ref __result);
+			Instance?.NormalizeFirstPersonOverrideActive(__instance, ref __result);
 		}
 
 		[HarmonyPostfix]
