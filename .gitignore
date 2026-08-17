@@ -13,3 +13,5 @@ build.log
 .vs/
 .vscode/
 .idea/
+
+*.zip

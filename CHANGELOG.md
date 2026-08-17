@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.3.6
+
+- Fixed compatibility with HUD minimap mods such as `TheEverythingMap by Nubez`, where Action Movement turn direction was locked and the character could only walk straight forward in third-person.
+- Fixed a bug where opening/closing the map in third-person caused the 3D map overlay clone to become permanently stuck in the center of the screen when minimap mods were active.
+- Unified and refined map active detection (`IsLocalMapToolActive`) to ensure character-relative Action Movement turning remains fully functional while background minimap rendering is active.
+- Set `ShowGrabSelection` config default to `false` so debug visualization lines/points are not shown during normal play.
+- Disabled noisy periodic `[ThirdPersonMapOverlay]` log flooding.
+
 ## 1.3.5
 
 - Fixed a bug in third-person (TP) mode where the camera height was doubly subtracted due to parent-child hierarchy displacement, which caused the view to drop excessively low or clip beneath the ground when crouching or crawling under low obstacles.

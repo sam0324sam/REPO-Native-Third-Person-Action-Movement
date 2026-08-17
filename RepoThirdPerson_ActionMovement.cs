@@ -15,14 +15,14 @@ using UnityEngine.Rendering.PostProcessing;
 
 [assembly: AssemblyCompany("RepoThirdPerson")]
 [assembly: AssemblyConfiguration("Release")]
-[assembly: AssemblyFileVersion("1.3.5.0")]
-[assembly: AssemblyInformationalVersion("1.3.5")]
+[assembly: AssemblyFileVersion("1.3.6.0")]
+[assembly: AssemblyInformationalVersion("1.3.6")]
 [assembly: AssemblyProduct("RepoThirdPerson")]
 [assembly: AssemblyTitle("RepoThirdPerson")]
-[assembly: AssemblyVersion("1.3.5.0")]
+[assembly: AssemblyVersion("1.3.6.0")]
 namespace RepoThirdPerson;
 
-[BepInPlugin("com.reponativemods.thirdperson", "REPO Native Third Person", "1.3.5")]
+[BepInPlugin("com.reponativemods.thirdperson", "REPO Native Third Person", "1.3.6")]
 public sealed partial class Plugin : BaseUnityPlugin
 {
 	private struct ClipPlaneState
@@ -38,7 +38,7 @@ public sealed partial class Plugin : BaseUnityPlugin
 
 	public const string PluginName = "REPO Native Third Person";
 
-	public const string PluginVersion = "1.3.5";
+	public const string PluginVersion = "1.3.6";
 
 	private const string SelectionTransformName = "REPO Native Third Person Selection Transform";
 
@@ -322,7 +322,6 @@ public sealed partial class Plugin : BaseUnityPlugin
 
 	private float _nextCameraSettingsLogTime;
 
-	private float _nextMapOverlayLogTime;
 
 	private GameObject _localMapOverlayClone;
 
@@ -617,7 +616,7 @@ public sealed partial class Plugin : BaseUnityPlugin
 		LockAcceptedCameraCollisionSettings();
 		LockAcceptedGrabCameraSettings();
 		_debugShowCameraPoints = ((BaseUnityPlugin)this).Config.Bind<bool>("Debug", "ShowCameraPoints", false, "Show debug dots for camera anchor (green) and head center point (red).");
-		_debugShowGrabSelection = ((BaseUnityPlugin)this).Config.Bind<bool>("Debug", "ShowGrabSelection", true, "Show third-person grab debug lines and points. Yellow = camera crosshair ray, cyan/green = character grab ray/valid target, red = unreachable camera hit.");
+		_debugShowGrabSelection = ((BaseUnityPlugin)this).Config.Bind<bool>("Debug", "ShowGrabSelection", false, "Show third-person grab debug lines and points. Yellow = camera crosshair ray, cyan/green = character grab ray/valid target, red = unreachable camera hit.");
 		_debugLogCameraSettings = ((BaseUnityPlugin)this).Config.Bind<bool>("Debug", "LogCameraSettings", false, "Log camera distance, resolved collision distance, offsets, and aim/camera angles only when camera settings are adjusted.");
 		_debugCameraLogInterval = ((BaseUnityPlugin)this).Config.Bind<float>("Debug", "CameraLogInterval", 1f, new ConfigDescription("Seconds between camera setting logs when Debug.LogCameraSettings is enabled.", (AcceptableValueBase)new AcceptableValueRange<float>(0.2f, 10f), Array.Empty<object>()));
 		_currentDistance = ClampDistance(_defaultDistance.Value);
@@ -854,11 +853,25 @@ public sealed partial class Plugin : BaseUnityPlugin
 
 	private bool IsMapAimLockActive()
 	{
-		if (_thirdPersonActive && !_temporarilyFirstPerson && (Object)(object)Map.Instance != (Object)null)
+		return _thirdPersonActive && !_temporarilyFirstPerson && IsLocalMapToolActive();
+	}
+
+	private static bool IsLocalMapToolActive()
+	{
+		if ((Object)(object)Map.Instance == (Object)null || !Map.Instance.Active)
 		{
-			return Map.Instance.Active;
+			return false;
 		}
-		return false;
+		MapToolController instance = MapToolController.instance;
+		if ((Object)(object)instance == (Object)null || (Object)(object)instance.VisualTransform == (Object)null)
+		{
+			return false;
+		}
+		if (!((Component)instance).gameObject.activeInHierarchy || !((Component)instance.VisualTransform).gameObject.activeInHierarchy)
+		{
+			return false;
+		}
+		return true;
 	}
 
 	private bool IsLocalGrabActive()
@@ -897,7 +910,7 @@ public sealed partial class Plugin : BaseUnityPlugin
 			return;
 		}
 		CameraAim instance = CameraAim.Instance;
-		if ((Object)(object)instance == (Object)null || RepoUpdatePatches.IsActionMovementCameraLockHeld())
+		if ((Object)(object)instance == (Object)null || RepoUpdatePatches.IsActionMovementCameraLockHeld() || IsMapAimLockActive())
 		{
 			return;
 		}
@@ -1003,7 +1016,7 @@ public sealed partial class Plugin : BaseUnityPlugin
 		{
 			return false;
 		}
-		bool flag = (Object)(object)Map.Instance != (Object)null && Map.Instance.Active;
+		bool flag = IsLocalMapToolActive();
 		if (!flag && (int)Cursor.lockState != 1)
 		{
 			return false;
@@ -2237,7 +2250,7 @@ public sealed partial class Plugin : BaseUnityPlugin
 		{
 			return false;
 		}
-		if ((Object)(object)Map.Instance != (Object)null && Map.Instance.Active)
+		if (IsLocalMapToolActive())
 		{
 			return false;
 		}
@@ -2454,12 +2467,12 @@ public sealed partial class Plugin : BaseUnityPlugin
 			HideLocalMapOverlay();
 			return;
 		}
-		MapToolController instance = MapToolController.instance;
-		if ((Object)(object)instance == (Object)null || (Object)(object)instance.VisualTransform == (Object)null || (Object)(object)Map.Instance == (Object)null || !Map.Instance.Active)
+		if (!IsLocalMapToolActive())
 		{
 			HideLocalMapOverlay();
 			return;
 		}
+		MapToolController instance = MapToolController.instance;
 		Camera main = Camera.main;
 		if ((Object)(object)main == (Object)null)
 		{
@@ -2486,11 +2499,7 @@ public sealed partial class Plugin : BaseUnityPlugin
 
 	private void LogMapOverlaySettingsIfNeeded()
 	{
-		if (!(Time.time < _nextMapOverlayLogTime))
-		{
-			_nextMapOverlayLogTime = Time.time + 1f;
-			Logger.LogInfo((object)$"[ThirdPersonMapOverlay] x={_mapOverlayX.Value:0.###}, y={_mapOverlayY.Value:0.###}, z={_mapOverlayZ.Value:0.###}, scale={_mapOverlayScale.Value:0.###}, pitch={_mapOverlayPitch.Value:0.###}, yaw={_mapOverlayYaw.Value:0.###}, roll={_mapOverlayRoll.Value:0.###}");
-		}
+		// Periodic overlay snapshots are intentionally disabled; they flood BepInEx logs during normal play.
 	}
 
 	private void EnsureLocalMapOverlay(MapToolController controller)
